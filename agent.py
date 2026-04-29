@@ -1,8 +1,15 @@
 from openai import OpenAI
 from dotenv import load_dotenv
+from pydantic import BaseModel,Field
+from typing import Optional
 import requests,json
 load_dotenv()
 
+class Output(BaseModel):
+    step: str=Field(...,description="The step which will be displayed to the user")
+    content: Optional[str]=Field(None,description="The content of the step")
+    tool: Optional[str]=Field(None,description="The tool which will be displayed to the user")
+    input: Optional[str]=Field(None,description="The input of the step")
 
 client=OpenAI()
 
@@ -36,6 +43,7 @@ SYSTEM_PROMPT = """
     PLAN : {'step':"PLAN":'content':"the addition gives 3.5"}
     PLAN : {'step':"PLAN":'content':"Great, we solved the problem and the answer is 3.5}
     OUTPUT:{"step":"OUTPUT":'content':"3.5"}
+    
     Example2:
     START:What is the weather of New York City?
     PLAN : {'step':"PLAN":'content':"seems like user want to know the weather of new york city"}"}
@@ -46,6 +54,7 @@ SYSTEM_PROMPT = """
     PLAN : {'step':"OBSERVE":'tool':'get_weather',"output":"Then current temperature of New York city is 21 degree Celcius. sky is clean without any sign of cloud. "}
     PLAN : {'step':"PLAN":"content":"Great. i have got the right info!"}
     OUTPUT:{"step":"OUTPUT":'content':"The current temperature of New York city is 21 degree Celcius. sky is clean without any sign of cloud. "}
+    
     Example3:
     START:How can you prove the statement that "every integral domain with unique factorisation domain
      is a Dedekind domain?
@@ -64,6 +73,25 @@ SYSTEM_PROMPT = """
     PLAN : {'step':"PLAN":'content':'Since it is Noetherian and dimension is less than or equal to 1, it is a 
     Dedekind domain'}
     OUTPUT: {'step':"OUTPUT":'content':"proved"}
+    
+    Example4:
+    START:How can you prove the statement that "for the two sequences of locally compact spaces with direct limits, 
+    the cartesian product topology on the product of two direct limits coincide with the direct limit topology which is associatd with
+    the sequence of products"?
+    PLAN : {'step':"PLAN":'content':'seems like user want to know two topologies,one induced by the direct limit of the product of two sequnces of locally
+    compact spaces and the other induced by the product of the direct limits of two sequences are equivalent.'}
+    PLAN : {'step':"PLAN":'content':"Consider an open set in the direct limit topology, and pick an arbitrary point of that set."}
+    PLAN : {'step':"PLAN":'content':"By the definition of direct limit, there exists an integer i such that that point is in the product of i-th two locally compact spaces."}
+    PLAN : {'step':"PLAN":'content':"Then I can choose compact neighborhoods of that point in the first coordinate, and in the second coordinate respectively such that the product of
+    those compact neighborhood is contained in the open set I chose above in the direct limit topology."}
+    PLAN : {'step':"PLAN":'content':"I can repeat this process for i+1-th sequence and so on."}
+    PLAN : {'step':"PLAN":'content':"By induction, I can get two sequences of compact neighborhood and I can define the unions of each sequences."}
+    PLAN : {'step':"PLAN":'content':"Then those two unions are open sets and the point I picked is contained in the product of those open sets."}
+    PLAN : {'step':"PLAN":'content':"Then those two unions are open sets is contained in the open set I picked in the direct limit topology.."}
+    PLAN : {'step':"PLAN":'content':"Therefore the open set we chose in the direct limit topology is open in the product topology of two sequences."}
+    OUTPUT:{'step':"OUTPUT":'content':"proved"}
+
+
 
 """
 
@@ -80,29 +108,29 @@ available={'get_weather':get_weather}
 user_query=input("Please enter your query: ")
 message_history.append({'role':'user','content':user_query})
 while True:
-    response = client.chat.completions.create(
+    response = client.chat.completions.parse(
         model="gpt-4o",
-        response_format={"type":"json_object"},
+        response_format=Output,
         messages=message_history
     )
     raw_result=response.choices[0].message.content
     message_history.append({'role':'assistant','content':raw_result})
-    parsed_result=json.loads(raw_result)
-    if parsed_result.get('step') == "START":
+    parsed_result=response.choices[0].message.parsed
+    if parsed_result.step == "START":
         print("I am initiating thinking mode to solve the question!")
         continue
-    if parsed_result.get('step') == "PLAN":
-        print("I am doing ",parsed_result.get("content"))
+    if parsed_result.step == "PLAN":
+        print("I am doing ",parsed_result.content)
         continue
-    if parsed_result.get('step') == "TOOL":
-        tool=parsed_result.get("tool")
-        input=parsed_result.get("input")
+    if parsed_result.step == "TOOL":
+        tool=parsed_result.tool
+        input=parsed_result.input
         print("I am calling {tool}")
         re=available[tool](input)
         message_history.append({'role':'developer','content':json.dumps({'step':"OBSERVE",'tool':'tool','input':input,'output':re})})
         continue
-    if parsed_result.get('step') == "OUTPUT":
-        print(parsed_result.get("content"))
+    if parsed_result.step == "OUTPUT":
+        print(parsed_result.content)
         break
 
 
