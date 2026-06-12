@@ -5,13 +5,63 @@ import torch.optim as optim
 with open('ramsey.txt', 'r') as f:
     text = f.read()
 
-torch.manual_seed(332)
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
-stoi = {ch: i for i, ch in enumerate(chars)}
-itos = {i: ch for i, ch in enumerate(chars)}
-encode = lambda s: [stoi[c] for c in s]
-decode = lambda l: "".join([itos[i] for i in l])
+torch.manual_seed(324)
+tokens=text.encode('utf-8')
+tokens=list(map(int,tokens))
+def get_stats(ids):
+    counts={}
+    for pair in zip(ids,ids[1:]):
+        counts[pair]=counts.get(pair,0)+1
+    return counts
+def merge(ids,pair,idx):
+    newids=[]
+    i=0
+    while i<len(ids):
+        if i<len(ids)-1 and ids[i+1]==pair[1] and ids[i]==pair[0]:
+            newids.append(idx)
+            i+=2
+        else:
+            newids.append(ids[i])
+            i+=1
+    return newids
+
+ids=list(tokens)
+merges={}
+for i in range(100):
+    stats=get_stats(ids)
+    pair=max(stats,key=stats.get)
+    idx=256+i
+    ids=merge(ids,pair,idx)
+    merges[pair]=idx
+vocab={idx:bytes([idx]) for idx in range(256)}
+for (pair,idx) in merges.items():
+    vocab[idx]=vocab[pair[0]]+vocab[pair[1]]
+
+
+def decode(ids):
+    tokens=b"".join(vocab[idx] for idx in ids)
+    text=tokens.decode('utf-8',errors="replace")
+    return text
+
+
+def encode(text):
+    tokens=list(text.encode('utf-8'))
+    while len(tokens)>=2:
+        stats=get_stats(tokens)
+        pair=min(stats,key=lambda p:merges.get(p,float("inf")))
+        if pair not in merges:
+            break
+        idx=merges[pair]
+        tokens=merge(tokens,pair,idx)
+    return tokens
+
+
+#chars = sorted(list(set(text)))
+#vocab_size = len(chars)
+#stoi = {ch: i for i, ch in enumerate(chars)}
+#itos = {i: ch for i, ch in enumerate(chars)}
+#encode = lambda s: [stoi[c] for c in s]
+#decode = lambda l: "".join([itos[i] for i in l])
 
 data = torch.tensor(encode(text), dtype=torch.long)
 n = int(0.9 * len(data))
