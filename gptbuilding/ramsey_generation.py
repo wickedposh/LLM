@@ -27,7 +27,7 @@ def merge(ids,pair,idx):
 
 ids=list(tokens)
 merges={}
-for i in range(100):
+for i in range(1000):
     stats=get_stats(ids)
     pair=max(stats,key=stats.get)
     idx=256+i
@@ -54,7 +54,7 @@ def encode(text):
         idx=merges[pair]
         tokens=merge(tokens,pair,idx)
     return tokens
-
+vocab_size=256+len(merges)
 
 #chars = sorted(list(set(text)))
 #vocab_size = len(chars)
