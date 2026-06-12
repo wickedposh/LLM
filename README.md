@@ -9,17 +9,12 @@
 
 
   ## Experiment 1 — learning-rate sweep
-  ┌────────┬────────────────────────────────┐
-  │   lr   │    training loss @ step 400    │
-  ├────────┼────────────────────────────────┤
-  │ 0.1    │ 5.84 (plateaued — overshoot)   │
-  ├────────┼────────────────────────────────┤
-  │ 0.01   │ 2.90 (best, still descending)  │
-  ├────────┼────────────────────────────────┤
-  │ 0.001  │ 3.86 (slow)                    │
-  ├────────┼────────────────────────────────┤
-  │ 0.0001 │ 5.89 (barely moved — underfit) │
-  └────────┴────────────────────────────────┘ 
+  | lr | training loss @ step 400 |
+  |---|---|
+  | 0.1 | 5.84 (plateaued — overshoot) |
+  | **0.01** | **2.90 (best, still descending)** |
+  | 0.001 | 3.86 (slow) |
+  | 0.0001 | 5.89 (barely moved — underfit) |
   — 1e-2 optimal, robust across BOTH char-level and BPE tokenization
   (reflects the optimization regime, not the vocabulary). The conventional 1e-3
   default underfit at this data scale.
