@@ -1,11 +1,7 @@
 import torch, os, random,re
 import torch.nn.functional as F
 import torch.optim as optim
-with open('ramsey.txt', 'r') as f:
-    text = f.read()
-text=re.sub(r'\[[^\]]*\]', '', text)
-text=re.sub(r'\([^)]*\)', '', text)
-text=re.sub(r':\n','',text)
+
 with open('ramsey.txt', 'r') as f:
     text = f.read()
 text=re.sub(r'\[[^\]]*\]', '', text)
@@ -78,12 +74,7 @@ def encode(text):
     return tokens
 vocab_size=256+len(merges)
 
-#chars = sorted(list(set(text)))
-#vocab_size = len(chars)
-#stoi = {ch: i for i, ch in enumerate(chars)}
-#itos = {i: ch for i, ch in enumerate(chars)}
-#encode = lambda s: [stoi[c] for c in s]
-#decode = lambda l: "".join([itos[i] for i in l])
+
 
 data = torch.tensor(encode(text), dtype=torch.long)
 n = int(0.9 * len(data))
@@ -252,19 +243,9 @@ class Block(torch.nn.Module):
         x=self.ffwd(self.ln2(x))+x
         return x
 
-#learning_rate=[0.1,0.01,0.001,0.0001]
-#result=[]
-#for i in range(len(learning_rate)):
-#    m=RamseyAssistant(32, 16, 500,learning_rate[i],vocab_size)
-#    m.train(traind)
-#    a=m.estimate_loss('train')
-#    result.append((i,a['train'],a['test']))
-#print(result)
 
-#context=torch.zeros((1,1),dtype=torch.long)
 best=RamseyAssistant(64, 32, 1000,0.01,vocab_size)
 best.train(data)
-#print(decode(best.model.generate(context,max_new_tokens=1000)[0].tolist()))
 prompt=":User: hi\n:Gordon:"
 context=torch.tensor([encode(prompt)],dtype=torch.long)
 out=best.model.generate(context,max_new_tokens=100)
