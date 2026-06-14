@@ -1,10 +1,32 @@
-import torch, os, random
+import torch, os, random,re
 import torch.nn.functional as F
 import torch.optim as optim
-
 with open('ramsey.txt', 'r') as f:
     text = f.read()
+text=re.sub(r'\[[^\]]*\]', '', text)
+text=re.sub(r'\([^)]*\)', '', text)
+text=re.sub(r':\n','',text)
+with open('ramsey.txt', 'r') as f:
+    text = f.read()
+text=re.sub(r'\[[^\]]*\]', '', text)
+text=re.sub(r'\([^)]*\)', '', text)
+text=re.sub(r':\n','',text)
+n = list(set(re.findall(r':[A-Za-z ]+:', text)))
+pattern=r'(:[^:]+:)(.*?)(?=(?:\n:[^:]+:)|$)'
 
+matches=re.findall(pattern,text,flags=re.S)
+script=[]
+
+for speaker,line in matches:
+    line=' '.join(line.split())
+    if line:
+        script.append([speaker,line])
+
+dialogue=""
+for speaker, line in script:
+    if line.strip():
+        dialogue+=f"{speaker}:{line}\n"
+text=dialogue
 torch.manual_seed(324)
 tokens=text.encode('utf-8')
 tokens=list(map(int,tokens))
@@ -27,7 +49,7 @@ def merge(ids,pair,idx):
 
 ids=list(tokens)
 merges={}
-for i in range(1000):
+for i in range(500):
     stats=get_stats(ids)
     pair=max(stats,key=stats.get)
     idx=256+i
@@ -66,7 +88,7 @@ vocab_size=256+len(merges)
 data = torch.tensor(encode(text), dtype=torch.long)
 n = int(0.9 * len(data))
 traind, testd = data[:n], data[n:]
-block_size = 32
+block_size = 64
 n_embd=64
 dropout=0.2
 n_heads=4
@@ -131,6 +153,7 @@ class RamseyAssistant:
         self.epochs=epochs
         self.lr = lr
         self.vocab_size = self.vocab_size
+        self.history=""
 
     def train(self, x):
         optimizer = optim.AdamW(self.model.parameters(), lr=self.lr)
@@ -156,6 +179,22 @@ class RamseyAssistant:
             out[split]=losses.mean()
         self.model.train()
         return out
+    @torch.no_grad()
+    def chat(self, user_text, role=":Gordon:"):
+        self.history+=(
+            f":User:{user_text}\n"
+        )
+        prompt=(self.history+f"{role}")
+        ids=torch.tensor([encode(prompt)],dtype=torch.long)
+        output=self.model.generate(ids,max_new_tokens=50)
+        text=decode(output[0].tolist())
+        response=text[len(prompt):]
+        stop=response.find("\n")
+        if stop!=-1:
+            response=response[:stop]
+        self.history+=(f"{role}{response.strip()}\n")
+        self.history=self.history[-1000:]
+        return response.strip()
 
 
 class Head(torch.nn.Module):
@@ -213,16 +252,25 @@ class Block(torch.nn.Module):
         x=self.ffwd(self.ln2(x))+x
         return x
 
-learning_rate=[0.1,0.01,0.001,0.0001]
-result=[]
-for i in range(len(learning_rate)):
-    m=RamseyAssistant(32, 16, 500,learning_rate[i],vocab_size)
-    m.train(traind)
-    a=m.estimate_loss('train')
-    result.append((i,a['train'],a['test']))
-print(result)
+#learning_rate=[0.1,0.01,0.001,0.0001]
+#result=[]
+#for i in range(len(learning_rate)):
+#    m=RamseyAssistant(32, 16, 500,learning_rate[i],vocab_size)
+#    m.train(traind)
+#    a=m.estimate_loss('train')
+#    result.append((i,a['train'],a['test']))
+#print(result)
 
-context=torch.zeros((1,1),dtype=torch.long)
-best=RamseyAssistant(32, 16, 3000,0.01,vocab_size)
-best.train(traind)
-print(decode(best.model.generate(context,max_new_tokens=1000)[0].tolist()))
+#context=torch.zeros((1,1),dtype=torch.long)
+best=RamseyAssistant(64, 32, 1000,0.01,vocab_size)
+best.train(data)
+#print(decode(best.model.generate(context,max_new_tokens=1000)[0].tolist()))
+prompt=":User: hi\n:Gordon:"
+context=torch.tensor([encode(prompt)],dtype=torch.long)
+out=best.model.generate(context,max_new_tokens=100)
+while True:
+    user_input = input("You:")
+    if user_input.lower() == "quit":
+        break
+    reply=best.chat(user_input,role=":Gordon:")
+    print(":Gordon:",reply)
