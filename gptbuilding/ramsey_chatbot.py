@@ -1,10 +1,9 @@
-import torch, os, random
+import torch, os, random,re
 import torch.nn.functional as F
 import torch.optim as optim
 
 with open('ramsey.txt', 'r') as f:
     text = f.read()
-
 torch.manual_seed(324)
 tokens=text.encode('utf-8')
 tokens=list(map(int,tokens))
@@ -36,7 +35,7 @@ for i in range(100):
 vocab={idx:bytes([idx]) for idx in range(256)}
 for (pair,idx) in merges.items():
     vocab[idx]=vocab[pair[0]]+vocab[pair[1]]
-
+vocab_size=256+len(merges)
 
 def decode(ids):
     tokens=b"".join(vocab[idx] for idx in ids)
@@ -131,6 +130,7 @@ class RamseyAssistant:
         self.epochs=epochs
         self.lr = lr
         self.vocab_size = self.vocab_size
+        self.history = ""
 
     def train(self, x):
         optimizer = optim.AdamW(self.model.parameters(), lr=self.lr)
@@ -164,9 +164,9 @@ class RamseyAssistant:
           output = self.model.generate(ids, max_new_tokens=50)
           text = decode(output[0][ids.shape[1]:].tolist())
           response = text                      # default: whole reply
-          stop = text.find(":User:")
-          if stop != -1:
-              response = response[:stop]
+          stop = re.search("\n:[^:\n]+:",text)
+          if stop:
+              response = response[:stop.start()]
           self.history += f"{role}{response.strip()}\n"
           self.history = self.history[-1000:]
           return response.strip()
@@ -229,7 +229,7 @@ class Block(torch.nn.Module):
 
 
 best=RamseyAssistant(32, 16, 3000,0.01,vocab_size)
-best.train(traind)
+best.train('train')
 while True:
     user_input = input("You:")
     if user_input.lower() == "quit":
