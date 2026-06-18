@@ -1,6 +1,6 @@
 ## A from-scratch LLM Stack
 
-from a simple neural network to the Gordon-Ramsay-ish chatbot!
+from a handwritten-transformer to the Gordon-Ramsay-ish chatbot!
 
 ## Components
   - GPT: I built a transformer for GPT with PyTorch and built a Ramsay-ish context generator from scratch (following Karpathy's tutorial).
