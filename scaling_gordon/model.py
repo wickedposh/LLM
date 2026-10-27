@@ -48,6 +48,8 @@ class GPT(nn.Module):
         self.cfg=cfg
         self.tok = nn.Embedding(cfg.vocab_size, cfg.n_embd)
         self.pos = nn.Embedding(cfg.block_size, cfg.n_embd)
+        nn.init.normal_(self.pos.weight, mean=0.0, std=cfg.embedding_init_std)
+
         self.blocks = nn.Sequential(*(Block(cfg) for _ in range(cfg.n_layer)))
         self.norm = nn.LayerNorm(cfg.n_embd)
         self.head = nn.Linear(cfg.n_embd, cfg.vocab_size, bias=False)

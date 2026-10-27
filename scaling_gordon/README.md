@@ -38,7 +38,13 @@ Measured at init (n_embd = 256, random inputs and independent random targets):
 | Default N(0, 1) | 19.3 | 174 | — |
 | N(0, 0.02²) | 0.32 | 5.59 | std 0.02·√256 = 0.32; loss ln 256 + σ²/2 ≈ 5.60 |
 
-Effect on training (MPS, 50 steps): final train loss 5.44 → 3.35 (n_embd 256) and 4.43 → 3.33 (n_embd 512).
+Re-initializing only the token embedding left the position embedding at N(0, 1), so at init the block input was ~98% position signal (std 1 vs 0.02). Training then plateaued near 3.3 at both sizes. Applying the same std to the position embedding removed the plateau, and model size started to matter:
+
+| Final train loss (MPS, 50 steps) | n_embd 256 | n_embd 512 |
+|---|---|---|
+| Default init | 5.44 | 4.43 |
+| Token embedding fixed | 3.35 | 3.33 |
+| Token + position embeddings fixed | **3.08** | **2.68** |
 
 ### Planned milestones
 
