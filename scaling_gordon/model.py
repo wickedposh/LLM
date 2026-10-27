@@ -12,6 +12,7 @@ class GPTConfig:
     n_head: int = 4
     n_embd: int = 128
     dropout: float = 0.0
+    embedding_init_std: float = 0.02
 
 class Attention(nn.Module):
     def __init__(self, cfg):
@@ -44,13 +45,15 @@ class Block(nn.Module):
 class GPT(nn.Module):
     def __init__(self, cfg: GPTConfig):
         super().__init__()
-        self.cfg = cfg
+        self.cfg=cfg
         self.tok = nn.Embedding(cfg.vocab_size, cfg.n_embd)
         self.pos = nn.Embedding(cfg.block_size, cfg.n_embd)
         self.blocks = nn.Sequential(*(Block(cfg) for _ in range(cfg.n_layer)))
         self.norm = nn.LayerNorm(cfg.n_embd)
         self.head = nn.Linear(cfg.n_embd, cfg.vocab_size, bias=False)
         self.head.weight = self.tok.weight
+        nn.init.normal_(self.tok.weight, mean=0.0, std=cfg.embedding_init_std)
+
     def forward(self, idx, targets=None):
         b, t = idx.shape
         if t > self.cfg.block_size:

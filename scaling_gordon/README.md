@@ -27,6 +27,19 @@ Compare `runs/mps/metrics.json` with `runs/cpu/metrics.json`. Each run writes a 
 
 This baseline uses raw UTF-8 bytes (vocabulary 256), **not** the original learned BPE merges. Results are therefore not directly comparable to the old tokenizer's losses. The original implementation remains on the `chatbot` branch.
 
+### Initialization fix
+
+With PyTorch's default `nn.Embedding` init (N(0, 1)) and weight tying, logits at init have std ≈ √n_embd, and the model starts as a near-perfect "copy the input" predictor. Re-initializing the token embedding with N(0, 0.02²) (`embedding_init_std`) brings the initial loss to the uniform-prediction value ln 256.
+
+Measured at init (n_embd = 256, random inputs and independent random targets):
+
+| | Logit std | Loss | Prediction |
+|---|---|---|---|
+| Default N(0, 1) | 19.3 | 174 | — |
+| N(0, 0.02²) | 0.32 | 5.59 | std 0.02·√256 = 0.32; loss ln 256 + σ²/2 ≈ 5.60 |
+
+Effect on training (MPS, 50 steps): final train loss 5.44 → 3.35 (n_embd 256) and 4.43 → 3.33 (n_embd 512).
+
 ### Planned milestones
 
 1. GPU memory profiling and model-size sweeps.
