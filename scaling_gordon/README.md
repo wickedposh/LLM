@@ -46,6 +46,18 @@ Re-initializing only the token embedding left the position embedding at N(0, 1),
 | Token embedding fixed | 3.35 | 3.33 |
 | Token + position embeddings fixed | **3.08** | **2.68** |
 
+### 500-step results (M5, after the init fix)
+
+| n_embd | Params | Final train loss | Sample val loss | MPS tok/s | CPU tok/s | MPS/CPU |
+|---|---|---|---|---|---|---|
+| 256 | 3.3M | 1.72 | 1.83 | 146k | 46k | 3.2× |
+| 512 | 12.8M | **1.60** | **1.61** | 53k | 13k | 4.0× |
+
+- **The larger model reaches lower loss**, and neither run has converged at 500 steps.
+- **Both models stall at the same steps** (150→200). With a fixed seed they see identical batches, so the pause comes from the data order, not the model.
+- **50-step runs underestimated MPS throughput** (101k vs 146k tok/s at n_embd 256) because start-up costs dominate short runs. Benchmarks should exclude warm-up steps.
+- **MPS and CPU losses agree to ~7 digits at n_embd 256**, and to the 5th digit at 512 after 500 steps, as floating-point differences accumulate.
+
 ### Planned milestones
 
 1. GPU memory profiling and model-size sweeps.
